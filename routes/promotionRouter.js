@@ -44,8 +44,6 @@ promotionRouter.route('/')
 
 
 
-
-
 promotionRouter.route('/:promotionId')
     
     .get((req, res, next) => {
