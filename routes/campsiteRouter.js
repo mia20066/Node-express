@@ -3,6 +3,11 @@
 
 const express = require('express');
 const Campsite = require('../models/campsite');
+const authenticate = require('../authenticate');/*the last update we done to authenticate module
+was to export a verify user function from it
+what we are doing here is verify that the user is authenticated for every endpoint
+in this router except for get endpoints because a get request is a simple read only operation
+that doesnt change anything on the server side*/
 
 
 //we will make updates to each endpoint in this file to interact with mongodb server through mongoose model methods
@@ -18,6 +23,7 @@ campsiteRouter.route('/') // the slash means it is for campsite path
     //})
     .get((req, res, next) => {
         Campsite.find()
+        .populate('comments.author') //this will tell our application that when campsite's documents are retrieved to populate the author field of the comments sub-document by finding the user document that matches the object'sId that is stored there
             .then(campsites => {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
@@ -26,7 +32,9 @@ campsiteRouter.route('/') // the slash means it is for campsite path
             .catch(err => next(err)); // what will this do is passing the error to the overall error handler for this express application
 
     })
-    .post((req, res, next) => {
+    //authenticate.verifyUser is a middle ware function
+    //and we are doing down on all endpoints means that the user needs to be authenticated in order to access those endpoints except the get ones
+    .post(authenticate.verifyUser,(req, res, next) => {
         Campsite.create(req.body)
             .then(campsite => {
                 console.log('Campsite Created ', campsite);
@@ -38,11 +46,11 @@ campsiteRouter.route('/') // the slash means it is for campsite path
             .catch(err => next(err));
 
     })
-    .put((req, res) => {
+    .put(authenticate.verifyUser,(req, res) => {
         res.statusCode = 403;
         res.end('PUT operation not supported on /campsites');
     })
-    .delete((req, res, next) => {
+    .delete(authenticate.verifyUser,(req, res, next) => {
         Campsite.deleteMany()
             .then(response => {
                 res.statusCode = 200;
@@ -60,6 +68,7 @@ campsiteRouter.route('/:campsiteId')
     //})
     .get((req, res, next) => {
         Campsite.findById(req.params.campsiteId)
+        .populate('comments.author') 
             .then(campsite => {
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
@@ -68,11 +77,11 @@ campsiteRouter.route('/:campsiteId')
             .catch(err => next(err)); // what will this do is passing the error to the overall error handler for this express application
 
     })
-    .post((req, res) => {
+    .post(authenticate.verifyUser,(req, res) => {
         res.statusCode = 403
         res.end(`POST operation not supported on /campsites/ ${req.params.campsiteId} to you`);
     })
-    .put((req, res) => {
+    .put(authenticate.verifyUser,(req, res) => {
         Campsite.findByIdAndUpdate(req.params.campsiteId, {
             $set: req.body
         }, { new: true }) //we set new to true so we get information back about the updated document as the result from this method
@@ -83,7 +92,7 @@ campsiteRouter.route('/:campsiteId')
             })
             .catch(err => next(err));
     })
-    .delete((req, res, next) => {
+    .delete(authenticate.verifyUser,(req, res, next) => {
         Campsite.findByIdAndDelete(req.params.campsiteId)
             .then(response => {
                 res.statusCode = 200;
@@ -98,6 +107,7 @@ campsiteRouter.route('/:campsiteId')
 campsiteRouter.route('/:campsiteId/comments')
     .get((req, res, next) => {
         Campsite.findById(req.params.campsiteId) // to get the campsite document
+        .populate('comments.author') 
             .then(campsite => {
                 if (campsite) { //to make sure that a document is returned since it is possible for a null value to be returned
                     res.statusCode = 200;
@@ -113,13 +123,14 @@ campsiteRouter.route('/:campsiteId/comments')
             .catch(err => next(err)); // what will this do is passing the error to the overall error handler for this express application
 
     })
-    .post((req, res, next) => {
+    .post(authenticate.verifyUser,(req, res, next) => {
         Campsite.findById(req.params.campsiteId)
             .then(campsite => {
                 if (campsite) {
                     //campsite.comments.push(req.body) changes only the comments array ithat is in the application memory and not
                     //the comments subdocument that is in mongodb database
                     //to actually save to mongodb database use: campsite.save()
+                    req.body.author = req.user._id;//when the comment is saved it will have the id of the user who submitted the comment in the author field so later we can access it to populate this field
                     campsite.comments.push(req.body);//using an array method push to push the new comment into the comments array// here we are assuming the re.body have comment inside it
                     campsite.save()// return a promise that if resolves do what is below  
                         .then(campsite => {
@@ -138,11 +149,11 @@ campsiteRouter.route('/:campsiteId/comments')
             .catch(err => next(err));
 
     })
-    .put((req, res) => {
+    .put(authenticate.verifyUser,(req, res) => {
         res.statusCode = 403;
         res.end(`PUT operation not supported on /campsites/${req.params.campsiteId}/comments`);
     })
-    .delete((req, res, next) => {
+    .delete(authenticate.verifyUser,(req, res, next) => {
         Campsite.findById(req.params.campsiteId)
             .then(campsite => {
                 if (campsite) {
@@ -173,6 +184,7 @@ campsiteRouter.route('/:campsiteId/comments')
 campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle requests for specific comment for a specific campsite
     .get((req, res, next) => {
         Campsite.findById(req.params.campsiteId) // to get the campsite document
+        .populate('comments.author') 
             .then(campsite => {
                 if (campsite && campsite.comments.id(req.params.commentId)) {  //check for campsite and comment if they are not null
                     res.statusCode = 200;
@@ -193,12 +205,12 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
             .catch(err => next(err)); // what will this do is passing the error to the overall error handler for this express application
 
     })
-    .post((req, res) => {
+    .post(authenticate.verifyUser,(req, res) => {
         res.statusCode = 403;
         res.end(`POST operation not supported on /campsites/${req.params.campsiteId}/comments/${req.params.commentId}`);
 
     })
-    .put((req, res, next) => {
+    .put(authenticate.verifyUser,(req, res, next) => {
         Campsite.findById(req.params.campsiteId) // to get the campsite document
             .then(campsite => {
                 if (campsite && campsite.comments.id(req.params.commentId)) {  //check for campsite and comment if they are not null
@@ -233,7 +245,7 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
             .catch(err => next(err));
 
     })
-    .delete((req, res, next) => {
+    .delete(authenticate.verifyUser,(req, res, next) => {
         Campsite.findById(req.params.campsiteId)
             .then(campsite => {
                 if (campsite && campsite.comments.id(req.params.commentId)) {  //check for campsite and comment if they are not null
