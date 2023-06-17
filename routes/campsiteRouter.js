@@ -34,7 +34,7 @@ campsiteRouter.route('/') // the slash means it is for campsite path
     })
     //authenticate.verifyUser is a middle ware function
     //and we are doing down on all endpoints means that the user needs to be authenticated in order to access those endpoints except the get ones
-    .post(authenticate.verifyUser,(req, res, next) => {
+    .post(authenticate.verifyUser, authenticate.verifyAdmin,(req, res, next) => {
         Campsite.create(req.body)
             .then(campsite => {
                 console.log('Campsite Created ', campsite);
@@ -50,7 +50,7 @@ campsiteRouter.route('/') // the slash means it is for campsite path
         res.statusCode = 403;
         res.end('PUT operation not supported on /campsites');
     })
-    .delete(authenticate.verifyUser,(req, res, next) => {
+    .delete(authenticate.verifyUser, authenticate.verifyAdmin,(req, res, next) => {
         Campsite.deleteMany()
             .then(response => {
                 res.statusCode = 200;
@@ -81,7 +81,7 @@ campsiteRouter.route('/:campsiteId')
         res.statusCode = 403
         res.end(`POST operation not supported on /campsites/ ${req.params.campsiteId} to you`);
     })
-    .put(authenticate.verifyUser,(req, res) => {
+    .put(authenticate.verifyUser, authenticate.verifyAdmin,(req, res) => {
         Campsite.findByIdAndUpdate(req.params.campsiteId, {
             $set: req.body
         }, { new: true }) //we set new to true so we get information back about the updated document as the result from this method
@@ -92,7 +92,7 @@ campsiteRouter.route('/:campsiteId')
             })
             .catch(err => next(err));
     })
-    .delete(authenticate.verifyUser,(req, res, next) => {
+    .delete(authenticate.verifyUser, authenticate.verifyAdmin,(req, res, next) => {
         Campsite.findByIdAndDelete(req.params.campsiteId)
             .then(response => {
                 res.statusCode = 200;
@@ -153,7 +153,7 @@ campsiteRouter.route('/:campsiteId/comments')
         res.statusCode = 403;
         res.end(`PUT operation not supported on /campsites/${req.params.campsiteId}/comments`);
     })
-    .delete(authenticate.verifyUser,(req, res, next) => {
+    .delete(authenticate.verifyUser, authenticate.verifyAdmin,(req, res, next) => {
         Campsite.findById(req.params.campsiteId)
             .then(campsite => {
                 if (campsite) {
@@ -214,6 +214,7 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
         Campsite.findById(req.params.campsiteId) // to get the campsite document
             .then(campsite => {
                 if (campsite && campsite.comments.id(req.params.commentId)) {  //check for campsite and comment if they are not null
+                    if((campsite.comments.id(req.params.commentId).author._id).equals(req.user.id)){
                     if (req.body.rating) {
                         campsite.comments.id(req.params.commentId).rating = req.body.rating;
 
@@ -229,7 +230,7 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
                         })
                         .catch(err => next(err));
 
-
+                    }
                 }
                 else if (!campsite) {
                     err = new Error(`Campsite ${req.params.campsiteId} not found`);
@@ -249,6 +250,7 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
         Campsite.findById(req.params.campsiteId)
             .then(campsite => {
                 if (campsite && campsite.comments.id(req.params.commentId)) {  //check for campsite and comment if they are not null
+                    if((campsite.comments.id(req.params.commentId).author._id).equals(req.user.id)){
                     campsite.comments.id(req.params.commentId).remove();
                     campsite.save() // if the save response succeed we will send the then to the client
                         .then(campsite => {
@@ -258,7 +260,7 @@ campsiteRouter.route('/:campsiteId/comments/:commentId')  // this will handle re
                         })
                         .catch(err => next(err));
 
-
+                    }
                 }
                 else if (!campsite) {
                     err = new Error(`Campsite ${req.params.campsiteId} not found`);

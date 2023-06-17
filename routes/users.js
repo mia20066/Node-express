@@ -9,8 +9,13 @@ const authenticate = require('../authenticate');
 
 
 /* GET users listing. */
-router.get('/', function (req, res, next) {
-  res.send('respond with a resource');
+router.get('/',authenticate.verifyUser,authenticate.verifyAdmin, function (req, res, next) {
+User.find()
+.then((users) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'application/json');
+  res.json(users);
+})
 });
 /* the passportLocalMongoose plugin provides us with methods that are useful for registering
 and logging in users we can use these in place of the code that we implemented earlier 
@@ -53,7 +58,8 @@ router.post('/signup', (req, res) => {
   }
 );
    });
-  /* User.findOne({username: req.body.username})
+  /* for session
+   User.findOne({username: req.body.username})
    .then(user => {
      if (user) {
        const err = new Error(`User ${req.body.username} already exits!`);
