@@ -21,10 +21,8 @@ const commentSchema = new Schema({      // it will be used for documents storing
         required: true
     },
     author: {
-
         type: mongoose.Schema.Types.ObjectId, //we store a refrence to a user document through user document objectId
         ref: 'User' //will hold the name of the model for that document which is User
-
     }
 },{
     timestamps: true
@@ -60,7 +58,7 @@ const campsiteSchema = new Schema({ //extentiate a new object called campsite sc
     },
     
     //we will add a schema a sa subdocuments inside campsiteSchema
-     comments: [commentSchema]
+      comments: [commentSchema]
 
 }// first argument
 
